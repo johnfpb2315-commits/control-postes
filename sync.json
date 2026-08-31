@@ -1,8 +1,8 @@
 {
   "projectCode": "ABANCAY-SEGURIDAD-2026",
-  "updatedAt": "2026-08-31T19:48:28.003Z",
+  "updatedAt": "2026-08-31T20:25:05.838Z",
   "senderDevice": "Laptop",
-  "totalProgressCount": 4,
+  "totalProgressCount": 6,
   "poles": [
     {
       "id": "POSTE 01",
@@ -11,7 +11,7 @@
       "crew": "",
       "installedAt": "2026-08-31",
       "installNotes": "poste concluido",
-      "photosCount": 0,
+      "photosCount": 1,
       "updatedAt": "2026-08-31T16:10:12.428Z"
     },
     {
@@ -22,7 +22,7 @@
       "installedAt": "2026-08-30",
       "installNotes": "Poste 02 en Corte",
       "photosCount": 0,
-      "updatedAt": "2026-08-31T15:30:52.306Z"
+      "updatedAt": "2026-08-31T15:32:39.646Z"
     },
     {
       "id": "POSTE 03",
@@ -32,7 +32,7 @@
       "installedAt": "2026-08-30",
       "installNotes": "Poste 03 Izado",
       "photosCount": 0,
-      "updatedAt": "2026-08-31T15:30:52.306Z"
+      "updatedAt": "2026-08-31T15:32:39.646Z"
     },
     {
       "id": "POSTE 04",
@@ -42,7 +42,27 @@
       "installedAt": "2026-08-30",
       "installNotes": "Poste 04 Instalado",
       "photosCount": 0,
-      "updatedAt": "2026-08-31T15:30:52.306Z"
+      "updatedAt": "2026-08-31T15:32:39.646Z"
+    },
+    {
+      "id": "POSTE 05",
+      "name": "POSTE 05",
+      "stage": "terminado",
+      "crew": "Cuadrilla Beta",
+      "installedAt": "2026-08-31",
+      "installNotes": "",
+      "photosCount": 1,
+      "updatedAt": "2026-08-31T15:32:39.646Z"
+    },
+    {
+      "id": "POSTE 06",
+      "name": "POSTE 06",
+      "stage": "izado_sin_solado",
+      "crew": "",
+      "installedAt": "2026-08-31",
+      "installNotes": "",
+      "photosCount": 0,
+      "updatedAt": "2026-08-31T15:32:39.646Z"
     }
   ]
 }
