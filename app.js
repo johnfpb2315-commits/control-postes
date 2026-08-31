@@ -2479,30 +2479,14 @@ function updateSyncQrDisplay() {
 // ------------------------------------------
 // ==========================================
 // CONFIGURACIÓN DE SINCRONIZACIÓN EN LA NUBE
-// Backend: GitHub Contents API (CORS correcto, sin límite de tamaño útil)
+// Backend: restful-api.dev (SIN TOKEN, funciona en cualquier dispositivo)
 // ==========================================
-const CLOUD_STORAGE_KEY_PREFIX = 'postetrack_cloud_sync_';
-const GITHUB_REPO   = 'johnfpb2315-commits/control-postes';
-const GITHUB_FILE   = 'sync.json';
-const GITHUB_BRANCH = 'main';
-const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_FILE}`;
-const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+const CLOUD_OBJECT_ID  = 'ff808181a058d43f01a059e03b600633';
+const CLOUD_API_URL    = `https://api.restful-api.dev/objects/${CLOUD_OBJECT_ID}`;
 
-// Fallback de solo lectura (ExtendsClass — no requiere token)
-const CLOUD_SYNC_BIN_ID  = 'edfecbb';
-const CLOUD_SYNC_API_URL = `https://extendsclass.com/api/json-storage/bin/${CLOUD_SYNC_BIN_ID}`;
-
-function getGitHubToken() {
-  return localStorage.getItem('postetrack_gh_token') || '';
-}
-
-function saveGitHubToken(token) {
-  localStorage.setItem('postetrack_gh_token', token.trim());
-}
-
-let autoSyncIntervalId = null;
+let autoSyncIntervalId    = null;
 let lastCloudSyncTimestamp = '';
-let isSyncingInProgress = false;
+let isSyncingInProgress   = false;
 
 // BroadcastChannel para sincronización instantánea entre pestañas en la misma máquina
 let localBroadcastChannel = null;
@@ -2525,9 +2509,9 @@ function startLiveAutoSync() {
   if (autoSyncIntervalId) clearInterval(autoSyncIntervalId);
 
   // Bajar datos de la nube al abrir la app
-  setTimeout(() => { handlePullDataFromCloud(true); }, 500);
+  setTimeout(() => { handlePullDataFromCloud(true); }, 800);
 
-  // Sondeo cada 30 segundos (respetar rate limits de GitHub API)
+  // Sondeo cada 30 segundos
   autoSyncIntervalId = setInterval(() => {
     handlePullDataFromCloud(true);
   }, 30000);
@@ -2555,34 +2539,16 @@ window.handleTriggerManualSync = async function() {
 };
 
 window.handlePushDataToCloud = async function(silent = false) {
-  const token = getGitHubToken();
-  const btn   = document.getElementById('btnPushToCloud');
-
-  // Si no hay token, pedir al usuario que lo configure
-  if (!token) {
-    if (!silent) {
-      const t = prompt(
-        '🔑 Para sincronizar necesitas un Token de GitHub.\n\n' +
-        '1. Ve a github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)\n' +
-        '2. Genera un token con permiso "repo"\n' +
-        '3. Pégalo aquí:'
-      );
-      if (t && t.trim()) {
-        saveGitHubToken(t.trim());
-        showToast('✅ Token guardado. Presiona Sync de nuevo.', 'success');
-      }
-    }
-    return;
-  }
+  const btn = document.getElementById('btnPushToCloud');
 
   if (!silent && btn) {
     btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Subiendo a la nube...';
+    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Subiendo...';
   }
   updateLiveSyncBannerUI('uploading');
 
   try {
-    // Solo sincronizar estado — NO fotos (Base64 pesa demasiado)
+    // Solo sincronizar estado — NO fotos (peso excesivo)
     const changedPoles = polesState
       .filter(p => (p.stage && p.stage !== 'pendiente') || p.crew || p.installedAt || p.installNotes)
       .map(p => ({
@@ -2596,70 +2562,42 @@ window.handlePushDataToCloud = async function(silent = false) {
         updatedAt:    p.updatedAt    || new Date().toISOString()
       }));
 
-    const payload = {
+    const syncPayload = {
       projectCode:        getActiveProjectCode(),
       updatedAt:          new Date().toISOString(),
       senderDevice:       (window.innerWidth >= 768 ? 'Laptop' : 'Celular'),
       totalProgressCount: changedPoles.length,
       poles:              changedPoles
     };
-    lastCloudSyncTimestamp = payload.updatedAt;
-
-    const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
-
-    // Obtener el SHA actual del archivo (necesario para actualizarlo)
-    let sha = '';
-    try {
-      const getResp = await fetch(GITHUB_API_URL, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
-      });
-      if (getResp.ok) {
-        const info = await getResp.json();
-        sha = info.sha || '';
-      }
-    } catch (_) {}
+    lastCloudSyncTimestamp = syncPayload.updatedAt;
 
     const body = JSON.stringify({
-      message: `sync: ${changedPoles.length} postes — ${new Date().toLocaleString('es-PE')}`,
-      content: contentB64,
-      branch:  GITHUB_BRANCH,
-      ...(sha ? { sha } : {})
+      name: 'PosteTrack_Abancay_Sync',
+      data: syncPayload
     });
 
-    const putResp = await fetch(GITHUB_API_URL, {
+    const resp = await fetch(CLOUD_API_URL, {
       method:  'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept':        'application/vnd.github+json',
-        'Content-Type':  'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body
     });
 
-    if (!putResp.ok) {
-      const err = await putResp.json().catch(() => ({}));
-      if (putResp.status === 401) {
-        // Token inválido — borrarlo para que el usuario lo ingrese de nuevo
-        localStorage.removeItem('postetrack_gh_token');
-        throw new Error('Token inválido o expirado — se eliminó, ingresa uno nuevo');
-      }
-      throw new Error(`GitHub API: ${putResp.status} — ${err.message || ''}`);
-    }
+    if (!resp.ok) throw new Error(`Error ${resp.status}`);
 
     const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const txtLast = document.getElementById('txtLastSyncTime');
     if (txtLast) txtLast.textContent = `Subido hoy a las ${timeStr}`;
     updateLiveSyncBannerUI('synced', timeStr);
-    if (!silent) showToast(`☁️ ¡${changedPoles.length} postes sincronizados en GitHub! (${timeStr})`, 'success');
+    if (!silent) showToast(`☁️ ¡${changedPoles.length} postes sincronizados! (${timeStr})`, 'success');
 
   } catch (err) {
     console.error('[Cloud Push Error]:', err.message || err);
     updateLiveSyncBannerUI('ready');
-    if (!silent) showToast(`❌ Error al subir: ${err.message || 'sin detalles'}`, 'error');
+    if (!silent) showToast(`❌ Error al subir: ${err.message || 'sin conexión'}`, 'error');
   } finally {
     if (!silent && btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="cloud-upload" class="w-4 h-4"></i> <span>☁️ Subir Avances a la Central</span>';
+      btn.innerHTML = '<i data-lucide="cloud-upload" class="w-4 h-4"></i> <span>☁️ Subir Avances</span>';
       if (window.lucide) window.lucide.createIcons();
     }
   }
@@ -2681,8 +2619,8 @@ function applyMergedRemotePoles(remotePolesMap, updatedAt = null, silent = true)
     if (localTs > 0 && remoteTs > 0 && localTs >= remoteTs) return;
 
     let changed = false;
-    if (remote.stage && remote.stage !== localPole.stage)                             { localPole.stage = remote.stage; changed = true; }
-    if (remote.crew !== undefined && remote.crew !== localPole.crew)                  { localPole.crew = remote.crew || ''; changed = true; }
+    if (remote.stage && remote.stage !== localPole.stage)                               { localPole.stage = remote.stage; changed = true; }
+    if (remote.crew !== undefined && remote.crew !== localPole.crew)                    { localPole.crew = remote.crew || ''; changed = true; }
     if (remote.installedAt !== undefined && remote.installedAt !== localPole.installedAt) { localPole.installedAt = remote.installedAt || ''; changed = true; }
     if (remote.installNotes !== undefined && remote.installNotes !== localPole.installNotes) { localPole.installNotes = remote.installNotes || ''; changed = true; }
 
@@ -2721,32 +2659,14 @@ window.handlePullDataFromCloud = async function(silent = false) {
   isSyncingInProgress = true;
 
   try {
-    const token = getGitHubToken();
-    let remoteData = null;
+    const resp = await fetch(`${CLOUD_API_URL}?_t=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache' }
+    });
 
-    if (token) {
-      // Con token: usar GitHub API — sin caché CDN, siempre datos frescos
-      const apiResp = await fetch(GITHUB_API_URL, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept':        'application/vnd.github+json',
-          'Cache-Control': 'no-cache'
-        }
-      });
+    if (!resp.ok) throw new Error(`Error ${resp.status}`);
 
-      if (apiResp.ok) {
-        const info = await apiResp.json();
-        // El contenido viene en Base64 — decodificarlo
-        const decoded = decodeURIComponent(escape(atob(info.content.replace(/\n/g, ''))));
-        remoteData = JSON.parse(decoded);
-      }
-    }
-
-    // Sin token o si la API falló: intentar raw (puede tener caché de hasta 5 min)
-    if (!remoteData) {
-      const rawResp = await fetch(`${GITHUB_RAW_URL}?_t=${Date.now()}`);
-      if (rawResp.ok) remoteData = await rawResp.json();
-    }
+    const obj = await resp.json();
+    const remoteData = obj && obj.data ? obj.data : null;
 
     if (!remoteData || !Array.isArray(remoteData.poles)) { isSyncingInProgress = false; return; }
 
@@ -2766,6 +2686,7 @@ window.handlePullDataFromCloud = async function(silent = false) {
     isSyncingInProgress = false;
   }
 };
+
 
 function updateLiveSyncBannerUI(status, timeStr = '') {
   const ping = document.getElementById('pingLiveSync');
