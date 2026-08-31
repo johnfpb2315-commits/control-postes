@@ -1,8 +1,8 @@
 {
   "projectCode": "ABANCAY-SEGURIDAD-2026",
-  "updatedAt": "2026-08-31T19:39:37.432Z",
-  "senderDevice": "Celular",
-  "totalProgressCount": 1,
+  "updatedAt": "2026-08-31T19:48:00.949Z",
+  "senderDevice": "Laptop",
+  "totalProgressCount": 4,
   "poles": [
     {
       "id": "POSTE 01",
@@ -11,8 +11,38 @@
       "crew": "",
       "installedAt": "2026-08-31",
       "installNotes": "poste concluido",
-      "photosCount": 1,
+      "photosCount": 0,
       "updatedAt": "2026-08-31T16:10:12.428Z"
+    },
+    {
+      "id": "POSTE 02",
+      "name": "POSTE 02",
+      "stage": "corte",
+      "crew": "Cuadrilla Beta",
+      "installedAt": "2026-08-30",
+      "installNotes": "Poste 02 en Corte",
+      "photosCount": 0,
+      "updatedAt": "2026-08-31T15:30:52.306Z"
+    },
+    {
+      "id": "POSTE 03",
+      "name": "POSTE 03",
+      "stage": "izado_sin_solado",
+      "crew": "Cuadrilla Gamma",
+      "installedAt": "2026-08-30",
+      "installNotes": "Poste 03 Izado",
+      "photosCount": 0,
+      "updatedAt": "2026-08-31T15:30:52.306Z"
+    },
+    {
+      "id": "POSTE 04",
+      "name": "POSTE 04",
+      "stage": "terminado",
+      "crew": "Cuadrilla Delta",
+      "installedAt": "2026-08-30",
+      "installNotes": "Poste 04 Instalado",
+      "photosCount": 0,
+      "updatedAt": "2026-08-31T15:30:52.306Z"
     }
   ]
 }
