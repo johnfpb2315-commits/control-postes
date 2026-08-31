@@ -1,5 +1,5 @@
 // Service Worker para PosteTrack Pro - Modo 100% Offline para Celulares
-const CACHE_NAME = 'postetrack-abancay-v4';
+const CACHE_NAME = 'postetrack-abancay-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
