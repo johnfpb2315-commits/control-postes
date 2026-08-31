@@ -1273,6 +1273,33 @@
             </p>
           </div>
 
+          <!-- Token de GitHub para Sincronización -->
+          <div class="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200 space-y-2">
+            <div class="flex justify-between items-center">
+              <label for="inputGitHubToken" class="font-black text-amber-950 uppercase tracking-wide text-[11px] flex items-center gap-1">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i>
+                Token de GitHub (Requerido para Subir/Bajar):
+              </label>
+              <span id="badgeTokenStatus" class="text-[10px] font-bold px-2 py-0.5 rounded-full border">
+                <!-- estado se actualiza por JS -->
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <input type="password" id="inputGitHubToken"
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                class="flex-1 px-3 py-2 rounded-xl border border-amber-300 bg-white font-mono font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs"
+                autocomplete="off" autocorrect="off" spellcheck="false">
+              <button onclick="handleSaveGitHubToken()" class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-white font-black text-xs rounded-xl transition active:scale-95 flex items-center gap-1 whitespace-nowrap shadow-md shadow-amber-500/30">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                Guardar
+              </button>
+            </div>
+            <p class="text-[10px] text-amber-700">
+              ⚠️ Ingresa el mismo token en el <strong>celular</strong> y en la <strong>laptop</strong> para que la sincronización funcione en ambos dispositivos.<br>
+              Obtén uno en: <strong>github.com → Settings → Developer settings → Personal access tokens (classic)</strong> con permiso <strong>"repo"</strong>.
+            </p>
+          </div>
+
           <!-- Acciones Principales de Sincronización -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             
