@@ -1254,23 +1254,31 @@
       <div class="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 text-xs">
         
         <!-- Pestaña 1: Sincronización Nube -->
-        <div id="tabContentCloud" class="space-y-4">
-          
-          <!-- Código del Proyecto / Canal -->
-          <div class="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-200 space-y-2">
-            <div class="flex justify-between items-center">
-              <label for="inputSyncProjectCode" class="font-black text-indigo-950 uppercase tracking-wide text-[11px] flex items-center gap-1">
-                <i data-lucide="key" class="w-3.5 h-3.5 text-indigo-600"></i>
-                Código de Obra / Canal de Sincronización:
-              </label>
-              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                🟢 Nube Conectada
-              </span>
-            </div>
-            <input type="text" id="inputSyncProjectCode" value="ABANCAY-SEGURIDAD-2026" class="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white font-mono font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-            <p class="text-[10px] text-indigo-700">
-              * Usa este mismo código en la computadora y en los celulares para compartir los avances del proyecto.
-            </p>
+        <div id="tabContentCloud" class="space-y-3">
+
+          <!-- BOTONES GRANDES DE SYNC — LO PRIMERO VISIBLE -->
+          <div class="grid grid-cols-2 gap-3">
+
+            <!-- Botón Subir — Celular -->
+            <button id="btnPushToCloud" onclick="handlePushDataToCloud()"
+              class="py-4 px-3 font-black text-sm text-white bg-emerald-600 hover:bg-emerald-500 rounded-2xl transition shadow-lg shadow-emerald-600/30 flex flex-col items-center justify-center gap-2 active:scale-95 border-2 border-emerald-500">
+              <i data-lucide="cloud-upload" class="w-7 h-7"></i>
+              <span class="text-center leading-tight">☁️ Subir Avances<br><span class="text-[10px] font-medium opacity-80">(desde el Celular)</span></span>
+            </button>
+
+            <!-- Botón Bajar — Laptop -->
+            <button id="btnPullFromCloud" onclick="handlePullDataFromCloud()"
+              class="py-4 px-3 font-black text-sm text-white bg-indigo-600 hover:bg-indigo-500 rounded-2xl transition shadow-lg shadow-indigo-600/30 flex flex-col items-center justify-center gap-2 active:scale-95 border-2 border-indigo-500">
+              <i data-lucide="cloud-download" class="w-7 h-7"></i>
+              <span class="text-center leading-tight">⬇️ Actualizar PC<br><span class="text-[10px] font-medium opacity-80">(en la Laptop)</span></span>
+            </button>
+
+          </div>
+
+          <!-- Estado y Última Sincronización -->
+          <div class="p-3 bg-slate-100 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+            <span class="text-slate-600 font-medium">Última sincronización:</span>
+            <span id="txtLastSyncTime" class="font-bold text-slate-900 font-mono">No realizada aún</span>
           </div>
 
           <!-- Token de GitHub para Sincronización -->
@@ -1278,11 +1286,9 @@
             <div class="flex justify-between items-center">
               <label for="inputGitHubToken" class="font-black text-amber-950 uppercase tracking-wide text-[11px] flex items-center gap-1">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i>
-                Token de GitHub (Requerido para Subir/Bajar):
+                Token de GitHub:
               </label>
-              <span id="badgeTokenStatus" class="text-[10px] font-bold px-2 py-0.5 rounded-full border">
-                <!-- estado se actualiza por JS -->
-              </span>
+              <span id="badgeTokenStatus" class="text-[10px] font-bold px-2 py-0.5 rounded-full border"></span>
             </div>
             <div class="flex gap-2">
               <input type="password" id="inputGitHubToken"
@@ -1295,54 +1301,18 @@
               </button>
             </div>
             <p class="text-[10px] text-amber-700">
-              ⚠️ Ingresa el mismo token en el <strong>celular</strong> y en la <strong>laptop</strong> para que la sincronización funcione en ambos dispositivos.<br>
-              Obtén uno en: <strong>github.com → Settings → Developer settings → Personal access tokens (classic)</strong> con permiso <strong>"repo"</strong>.
+              ⚠️ Ingresa el mismo token en el <strong>celular</strong> y en la <strong>laptop</strong>.
             </p>
           </div>
 
-          <!-- Acciones Principales de Sincronización -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            
-            <!-- Botón para el Celular -->
-            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                  <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600"></i>
-                  <span>Desde el Celular en Campo:</span>
-                </div>
-                <p class="text-[11px] text-slate-500 mt-1">
-                  Sube los postes instalados, fotos y estados a la nube para que se vean en la computadora.
-                </p>
-              </div>
-              <button id="btnPushToCloud" onclick="handlePushDataToCloud()" class="w-full py-2.5 px-3 font-black text-xs text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1.5 active:scale-95">
-                <i data-lucide="cloud-upload" class="w-4 h-4"></i>
-                <span>☁️ Subir Avances a la Central</span>
-              </button>
-            </div>
-
-            <!-- Botón para la Computadora -->
-            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                  <i data-lucide="monitor" class="w-4 h-4 text-indigo-600"></i>
-                  <span>En tu Computadora (Oficina):</span>
-                </div>
-                <p class="text-[11px] text-slate-500 mt-1">
-                  Descarga y actualiza inmediatamente en tu pantalla todo lo que llenaron los técnicos.
-                </p>
-              </div>
-              <button id="btnPullFromCloud" onclick="handlePullDataFromCloud()" class="w-full py-2.5 px-3 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 active:scale-95">
-                <i data-lucide="cloud-download" class="w-4 h-4"></i>
-                <span>⬇️ Actualizar Datos en mi PC</span>
-              </button>
-            </div>
-
-          </div>
-
-          <!-- Estado y Última Sincronización -->
-          <div class="p-3 bg-slate-100 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
-            <span class="text-slate-600 font-medium">Última sincronización con la central:</span>
-            <span id="txtLastSyncTime" class="font-bold text-slate-900 font-mono">No realizada aún</span>
+          <!-- Canal de Sincronización -->
+          <div class="bg-indigo-50/70 p-3 rounded-xl border border-indigo-200 space-y-1.5">
+            <label for="inputSyncProjectCode" class="font-black text-indigo-950 uppercase tracking-wide text-[10px] flex items-center gap-1">
+              <i data-lucide="key" class="w-3 h-3 text-indigo-600"></i>
+              Canal de Sincronización:
+            </label>
+            <input type="text" id="inputSyncProjectCode" value="ABANCAY-SEGURIDAD-2026"
+              class="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white font-mono font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
           </div>
 
         </div>
