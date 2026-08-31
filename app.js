@@ -2447,7 +2447,29 @@ function updateSyncQrDisplay() {
 // ------------------------------------------
 // MOTOR DE SINCRONIZACIÓN EN TIEMPO REAL (CLOUD AUTO-SYNC)
 // ------------------------------------------
+// ==========================================
+// CONFIGURACIÓN DE SINCRONIZACIÓN EN LA NUBE
+// Backend: GitHub Contents API (CORS correcto, sin límite de tamaño útil)
+// ==========================================
 const CLOUD_STORAGE_KEY_PREFIX = 'postetrack_cloud_sync_';
+const GITHUB_REPO   = 'johnfpb2315-commits/control-postes';
+const GITHUB_FILE   = 'sync.json';
+const GITHUB_BRANCH = 'main';
+const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_FILE}`;
+const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+
+// Fallback de solo lectura (ExtendsClass — no requiere token)
+const CLOUD_SYNC_BIN_ID  = 'edfecbb';
+const CLOUD_SYNC_API_URL = `https://extendsclass.com/api/json-storage/bin/${CLOUD_SYNC_BIN_ID}`;
+
+function getGitHubToken() {
+  return localStorage.getItem('postetrack_gh_token') || '';
+}
+
+function saveGitHubToken(token) {
+  localStorage.setItem('postetrack_gh_token', token.trim());
+}
+
 let autoSyncIntervalId = null;
 let lastCloudSyncTimestamp = '';
 let isSyncingInProgress = false;
@@ -2465,27 +2487,20 @@ try {
 
 function getActiveProjectCode() {
   const codeInput = document.getElementById('inputSyncProjectCode');
-  if (codeInput && codeInput.value.trim()) {
-    return codeInput.value.trim();
-  }
+  if (codeInput && codeInput.value.trim()) return codeInput.value.trim();
   return localStorage.getItem('postetrack_active_project_code') || 'ABANCAY-SEGURIDAD-2026';
 }
-
-const CLOUD_SYNC_BIN_ID = 'edfecbb';
-const CLOUD_SYNC_API_URL = `https://extendsclass.com/api/json-storage/bin/${CLOUD_SYNC_BIN_ID}`;
 
 function startLiveAutoSync() {
   if (autoSyncIntervalId) clearInterval(autoSyncIntervalId);
 
-  // 1. Recuperar últimos avances de la nube inmediatamente al abrir la app
-  setTimeout(() => {
-    handlePullDataFromCloud(true);
-  }, 200);
+  // Bajar datos de la nube al abrir la app
+  setTimeout(() => { handlePullDataFromCloud(true); }, 500);
 
-  // 2. Sondeo en segundo plano cada 2.5 segundos
+  // Sondeo cada 30 segundos (respetar rate limits de GitHub API)
   autoSyncIntervalId = setInterval(() => {
     handlePullDataFromCloud(true);
-  }, 2500);
+  }, 30000);
 
   updateLiveSyncBannerUI('ready');
 }
@@ -2493,9 +2508,7 @@ function startLiveAutoSync() {
 function autoSyncPushToCloud() {
   handlePushDataToCloud(true);
   if (localBroadcastChannel) {
-    try {
-      localBroadcastChannel.postMessage({ type: 'POLES_UPDATED', timestamp: Date.now() });
-    } catch (e) {}
+    try { localBroadcastChannel.postMessage({ type: 'POLES_UPDATED', timestamp: Date.now() }); } catch (e) {}
   }
 }
 
@@ -2512,19 +2525,34 @@ window.handleTriggerManualSync = async function() {
 };
 
 window.handlePushDataToCloud = async function(silent = false) {
-  const projectCode = getActiveProjectCode();
-  const btn = document.getElementById('btnPushToCloud');
+  const token = getGitHubToken();
+  const btn   = document.getElementById('btnPushToCloud');
+
+  // Si no hay token, pedir al usuario que lo configure
+  if (!token) {
+    if (!silent) {
+      const t = prompt(
+        '🔑 Para sincronizar necesitas un Token de GitHub.\n\n' +
+        '1. Ve a github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)\n' +
+        '2. Genera un token con permiso "repo"\n' +
+        '3. Pégalo aquí:'
+      );
+      if (t && t.trim()) {
+        saveGitHubToken(t.trim());
+        showToast('✅ Token guardado. Presiona Sync de nuevo.', 'success');
+      }
+    }
+    return;
+  }
 
   if (!silent && btn) {
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Subiendo a la nube...';
   }
-
   updateLiveSyncBannerUI('uploading');
 
   try {
-    // SOLO sincronizar metadatos de estado — NO fotos (son Base64 y pesan demasiado).
-    // Las fotos permanecen guardadas localmente en cada dispositivo.
+    // Solo sincronizar estado — NO fotos (Base64 pesa demasiado)
     const changedPoles = polesState
       .filter(p => (p.stage && p.stage !== 'pendiente') || p.crew || p.installedAt || p.installNotes)
       .map(p => ({
@@ -2534,61 +2562,70 @@ window.handlePushDataToCloud = async function(silent = false) {
         crew:         p.crew         || '',
         installedAt:  p.installedAt  || '',
         installNotes: p.installNotes || '',
-        photosCount:  (p.photos || []).length,   // solo cantidad, no el contenido
+        photosCount:  (p.photos || []).length,
         updatedAt:    p.updatedAt    || new Date().toISOString()
       }));
 
     const payload = {
-      projectCode,
+      projectCode:        getActiveProjectCode(),
       updatedAt:          new Date().toISOString(),
-      senderDevice:       (window.innerWidth >= 768 ? 'Laptop' : 'Celular') + '_' + Math.random().toString(36).substr(2, 4),
+      senderDevice:       (window.innerWidth >= 768 ? 'Laptop' : 'Celular'),
       totalProgressCount: changedPoles.length,
       poles:              changedPoles
     };
-
-    const payloadStr = JSON.stringify(payload);
-
-    // Verificar tamaño antes de enviar (límite seguro: 400 KB)
-    if (payloadStr.length > 400000) {
-      throw new Error(`Payload demasiado grande: ${(payloadStr.length / 1024).toFixed(0)} KB`);
-    }
-
     lastCloudSyncTimestamp = payload.updatedAt;
 
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
 
-    const response = await fetch(CLOUD_SYNC_API_URL, {
-      method:  'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body:    payloadStr,
-      signal:  controller.signal
+    // Obtener el SHA actual del archivo (necesario para actualizarlo)
+    let sha = '';
+    try {
+      const getResp = await fetch(GITHUB_API_URL, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+      });
+      if (getResp.ok) {
+        const info = await getResp.json();
+        sha = info.sha || '';
+      }
+    } catch (_) {}
+
+    const body = JSON.stringify({
+      message: `sync: ${changedPoles.length} postes — ${new Date().toLocaleString('es-PE')}`,
+      content: contentB64,
+      branch:  GITHUB_BRANCH,
+      ...(sha ? { sha } : {})
     });
-    clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const txt = await response.text().catch(() => '');
-      throw new Error(`HTTP ${response.status} — ${txt.slice(0, 80)}`);
+    const putResp = await fetch(GITHUB_API_URL, {
+      method:  'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept':        'application/vnd.github+json',
+        'Content-Type':  'application/json'
+      },
+      body
+    });
+
+    if (!putResp.ok) {
+      const err = await putResp.json().catch(() => ({}));
+      if (putResp.status === 401) {
+        // Token inválido — borrarlo para que el usuario lo ingrese de nuevo
+        localStorage.removeItem('postetrack_gh_token');
+        throw new Error('Token inválido o expirado — se eliminó, ingresa uno nuevo');
+      }
+      throw new Error(`GitHub API: ${putResp.status} — ${err.message || ''}`);
     }
 
     const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const txtLast = document.getElementById('txtLastSyncTime');
     if (txtLast) txtLast.textContent = `Subido hoy a las ${timeStr}`;
-
     updateLiveSyncBannerUI('synced', timeStr);
+    if (!silent) showToast(`☁️ ¡${changedPoles.length} postes sincronizados en GitHub! (${timeStr})`, 'success');
 
-    if (!silent) {
-      showToast(`☁️ ¡Datos subidos a la nube! ${changedPoles.length} postes sincronizados (${timeStr})`, 'success');
-    }
   } catch (err) {
     console.error('[Cloud Push Error]:', err.message || err);
     updateLiveSyncBannerUI('ready');
-    if (!silent) {
-      const msg = err.name === 'AbortError'
-        ? 'Tiempo de espera agotado — revisa tu conexión a internet'
-        : `Error al subir: ${err.message || 'sin detalles'}`;
-      showToast(`❌ ${msg}`, 'error');
-    }
+    if (!silent) showToast(`❌ Error al subir: ${err.message || 'sin detalles'}`, 'error');
   } finally {
     if (!silent && btn) {
       btn.disabled = false;
@@ -2600,58 +2637,26 @@ window.handlePushDataToCloud = async function(silent = false) {
 
 function applyMergedRemotePoles(remotePolesMap, updatedAt = null, silent = true) {
   if (!remotePolesMap || remotePolesMap.size === 0) return;
-
-  if (updatedAt && updatedAt === lastCloudSyncTimestamp) {
-    return;
-  }
+  if (updatedAt && updatedAt === lastCloudSyncTimestamp) return;
 
   lastCloudSyncTimestamp = updatedAt || new Date().toISOString();
-
   let updatedCount = 0;
 
   polesState.forEach(localPole => {
     const remote = remotePolesMap.get(localPole.id) || remotePolesMap.get(localPole.name);
     if (!remote) return;
 
-    // BUG FIX #1: Merge inteligente por timestamp por poste.
-    // Solo se aplican datos remotos si el remoto es más reciente que el local.
-    // Si no hay timestamps (datos viejos), se aplica el remoto por compatibilidad.
     const remoteTs = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
     const localTs  = localPole.updatedAt ? new Date(localPole.updatedAt).getTime() : 0;
+    if (localTs > 0 && remoteTs > 0 && localTs >= remoteTs) return;
 
-    // Si el local tiene timestamp y es más reciente que el remoto, no sobreescribir
-    if (localTs > 0 && remoteTs > 0 && localTs >= remoteTs) {
-      return; // Este dispositivo tiene datos más nuevos — no tocar
-    }
-
-    // El remoto es más nuevo (o no hay timestamps para comparar): aplicar datos remotos
     let changed = false;
-
-    if (remote.stage && remote.stage !== localPole.stage) {
-      localPole.stage = remote.stage;
-      changed = true;
-    }
-    if (remote.crew !== undefined && remote.crew !== localPole.crew) {
-      localPole.crew = remote.crew || '';
-      changed = true;
-    }
-    if (remote.installedAt !== undefined && remote.installedAt !== localPole.installedAt) {
-      localPole.installedAt = remote.installedAt || '';
-      changed = true;
-    }
-    if (remote.installNotes !== undefined && remote.installNotes !== localPole.installNotes) {
-      localPole.installNotes = remote.installNotes || '';
-      changed = true;
-    }
-    if (remote.photos && Array.isArray(remote.photos) && remote.photos.length > 0) {
-      if (JSON.stringify(remote.photos) !== JSON.stringify(localPole.photos || [])) {
-        localPole.photos = remote.photos;
-        changed = true;
-      }
-    }
+    if (remote.stage && remote.stage !== localPole.stage)                             { localPole.stage = remote.stage; changed = true; }
+    if (remote.crew !== undefined && remote.crew !== localPole.crew)                  { localPole.crew = remote.crew || ''; changed = true; }
+    if (remote.installedAt !== undefined && remote.installedAt !== localPole.installedAt) { localPole.installedAt = remote.installedAt || ''; changed = true; }
+    if (remote.installNotes !== undefined && remote.installNotes !== localPole.installNotes) { localPole.installNotes = remote.installNotes || ''; changed = true; }
 
     if (changed) {
-      // Preservar el timestamp remoto para futuros merges
       if (remote.updatedAt) localPole.updatedAt = remote.updatedAt;
       updatedCount++;
     }
@@ -2662,17 +2667,13 @@ function applyMergedRemotePoles(remotePolesMap, updatedAt = null, silent = true)
     populateCrewFilters();
     updateDashboard();
     renderPolesTable();
-
     const repModal = document.getElementById('modalReports');
-    if (repModal && !repModal.classList.contains('hidden')) {
-      renderReportsView();
-    }
+    if (repModal && !repModal.classList.contains('hidden')) renderReportsView();
   }
 
   const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const txtLast = document.getElementById('txtLastSyncTime');
   if (txtLast) txtLast.textContent = `Sincronizado hoy a las ${timeStr}`;
-
   updateLiveSyncBannerUI('synced', timeStr);
 
   if (updatedCount > 0) {
@@ -2680,7 +2681,7 @@ function applyMergedRemotePoles(remotePolesMap, updatedAt = null, silent = true)
       if (typeof confetti === 'function') confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
       showToast(`🎉 ¡Sincronizado! Se actualizaron ${updatedCount} poste(s)`, 'success');
     } else {
-      showToast(`⚡ Sincronización en vivo: ${updatedCount} poste(s) actualizados (${timeStr})`, 'info');
+      showToast(`⚡ Sync en vivo: ${updatedCount} poste(s) actualizados (${timeStr})`, 'info');
     }
   }
 }
@@ -2689,33 +2690,27 @@ window.handlePullDataFromCloud = async function(silent = false) {
   if (isSyncingInProgress) return;
   isSyncingInProgress = true;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
-
   try {
-    const resp = await fetch(`${CLOUD_SYNC_API_URL}?_t=${Date.now()}`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!resp.ok) return;
+    // Leer desde raw.githubusercontent.com — sin autenticación, sin CORS issues
+    const resp = await fetch(`${GITHUB_RAW_URL}?_t=${Date.now()}`);
+    if (!resp.ok) { isSyncingInProgress = false; return; }
 
     const remoteData = await resp.json();
-    if (!remoteData || !Array.isArray(remoteData.poles)) return;
+    if (!remoteData || !Array.isArray(remoteData.poles)) { isSyncingInProgress = false; return; }
 
     if (silent && remoteData.updatedAt && remoteData.updatedAt === lastCloudSyncTimestamp) {
       updateLiveSyncBannerUI('synced');
+      isSyncingInProgress = false;
       return;
     }
 
     const mergedRemoteMap = new Map();
-    remoteData.poles.forEach(p => {
-      const pid = p.id || p.name;
-      if (pid) mergedRemoteMap.set(pid, p);
-    });
+    remoteData.poles.forEach(p => { const pid = p.id || p.name; if (pid) mergedRemoteMap.set(pid, p); });
+    if (mergedRemoteMap.size > 0) applyMergedRemotePoles(mergedRemoteMap, remoteData.updatedAt, silent);
 
-    if (mergedRemoteMap.size > 0) {
-      applyMergedRemotePoles(mergedRemoteMap, remoteData.updatedAt, silent);
-    }
   } catch (err) {
-    clearTimeout(timeoutId);
+    // Silencioso — no molestar al usuario con errores de red en segundo plano
+    console.warn('[Cloud Pull]:', err.message);
   } finally {
     isSyncingInProgress = false;
   }
