@@ -1,7 +1,18 @@
 {
   "projectCode": "ABANCAY-SEGURIDAD-2026",
-  "updatedAt": "2026-08-31T16:09:56.393Z",
+  "updatedAt": "2026-08-31T16:10:13.114Z",
   "senderDevice": "Celular",
-  "totalProgressCount": 0,
-  "poles": []
+  "totalProgressCount": 1,
+  "poles": [
+    {
+      "id": "POSTE 01",
+      "name": "POSTE 01",
+      "stage": "terminado",
+      "crew": "",
+      "installedAt": "2026-08-31",
+      "installNotes": "poste concluido",
+      "photosCount": 1,
+      "updatedAt": "2026-08-31T16:10:12.428Z"
+    }
+  ]
 }
