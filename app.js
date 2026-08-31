@@ -2392,16 +2392,46 @@ window.handleOpenSyncModal = function() {
   if (modal) {
     modal.classList.remove('hidden');
     updateSyncQrDisplay();
+    // Cargar token guardado en el campo de texto
+    const tokenInput = document.getElementById('inputGitHubToken');
+    const badge = document.getElementById('badgeTokenStatus');
+    const savedToken = getGitHubToken();
+    if (tokenInput) tokenInput.value = savedToken || '';
+    if (badge) {
+      if (savedToken) {
+        badge.textContent = '✅ Token Configurado';
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-100 text-emerald-700 border-emerald-300';
+      } else {
+        badge.textContent = '⚠️ Sin Token';
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-red-100 text-red-700 border-red-300';
+      }
+    }
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
       window.lucide.createIcons();
     }
   }
 };
 
-window.handleCloseSyncModal = function() {
-  const modal = document.getElementById('modalSyncData');
-  if (modal) modal.classList.add('hidden');
+window.handleSaveGitHubToken = function() {
+  const tokenInput = document.getElementById('inputGitHubToken');
+  const badge = document.getElementById('badgeTokenStatus');
+  if (!tokenInput) return;
+  const val = tokenInput.value.trim();
+  if (!val) {
+    showToast('⚠️ Escribe un token antes de guardar.', 'warning');
+    return;
+  }
+  if (!val.startsWith('ghp_') && !val.startsWith('github_pat_')) {
+    if (!confirm('El token no parece tener el formato correcto (debe empezar con "ghp_" o "github_pat_"). ¿Deseas guardarlo de todas formas?')) return;
+  }
+  saveGitHubToken(val);
+  if (badge) {
+    badge.textContent = '✅ Token Configurado';
+    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-100 text-emerald-700 border-emerald-300';
+  }
+  showToast('✅ Token guardado correctamente. Ya puedes sincronizar.', 'success');
 };
+
 
 window.switchSyncTab = function(tabName) {
   const tabs = ['cloud', 'qr', 'file'];
@@ -2691,11 +2721,33 @@ window.handlePullDataFromCloud = async function(silent = false) {
   isSyncingInProgress = true;
 
   try {
-    // Leer desde raw.githubusercontent.com — sin autenticación, sin CORS issues
-    const resp = await fetch(`${GITHUB_RAW_URL}?_t=${Date.now()}`);
-    if (!resp.ok) { isSyncingInProgress = false; return; }
+    const token = getGitHubToken();
+    let remoteData = null;
 
-    const remoteData = await resp.json();
+    if (token) {
+      // Con token: usar GitHub API — sin caché CDN, siempre datos frescos
+      const apiResp = await fetch(GITHUB_API_URL, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept':        'application/vnd.github+json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      if (apiResp.ok) {
+        const info = await apiResp.json();
+        // El contenido viene en Base64 — decodificarlo
+        const decoded = decodeURIComponent(escape(atob(info.content.replace(/\n/g, ''))));
+        remoteData = JSON.parse(decoded);
+      }
+    }
+
+    // Sin token o si la API falló: intentar raw (puede tener caché de hasta 5 min)
+    if (!remoteData) {
+      const rawResp = await fetch(`${GITHUB_RAW_URL}?_t=${Date.now()}`);
+      if (rawResp.ok) remoteData = await rawResp.json();
+    }
+
     if (!remoteData || !Array.isArray(remoteData.poles)) { isSyncingInProgress = false; return; }
 
     if (silent && remoteData.updatedAt && remoteData.updatedAt === lastCloudSyncTimestamp) {
@@ -2709,7 +2761,6 @@ window.handlePullDataFromCloud = async function(silent = false) {
     if (mergedRemoteMap.size > 0) applyMergedRemotePoles(mergedRemoteMap, remoteData.updatedAt, silent);
 
   } catch (err) {
-    // Silencioso — no molestar al usuario con errores de red en segundo plano
     console.warn('[Cloud Pull]:', err.message);
   } finally {
     isSyncingInProgress = false;
