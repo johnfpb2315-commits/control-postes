@@ -2523,41 +2523,52 @@ window.handlePushDataToCloud = async function(silent = false) {
   updateLiveSyncBannerUI('uploading');
 
   try {
-    // BUG FIX #2: Subir TODOS los postes que tienen datos (no sólo los filtrados),
-    // incluyendo el timestamp por poste para el merge inteligente.
+    // SOLO sincronizar metadatos de estado — NO fotos (son Base64 y pesan demasiado).
+    // Las fotos permanecen guardadas localmente en cada dispositivo.
     const changedPoles = polesState
-      .filter(p => (p.stage && p.stage !== 'pendiente') || p.crew || p.installedAt || p.installNotes || (p.photos && p.photos.length > 0))
+      .filter(p => (p.stage && p.stage !== 'pendiente') || p.crew || p.installedAt || p.installNotes)
       .map(p => ({
-        id: p.id,
-        name: p.name,
-        stage: p.stage || 'pendiente',
-        crew: p.crew || '',
-        installedAt: p.installedAt || '',
+        id:           p.id,
+        name:         p.name,
+        stage:        p.stage        || 'pendiente',
+        crew:         p.crew         || '',
+        installedAt:  p.installedAt  || '',
         installNotes: p.installNotes || '',
-        photos: p.photos || [],
-        updatedAt: p.updatedAt || new Date().toISOString()
+        photosCount:  (p.photos || []).length,   // solo cantidad, no el contenido
+        updatedAt:    p.updatedAt    || new Date().toISOString()
       }));
 
     const payload = {
-      projectCode: projectCode,
-      updatedAt: new Date().toISOString(),
-      senderDevice: (window.innerWidth >= 768 ? 'Laptop' : 'Celular') + '_' + Math.random().toString(36).substr(2, 4),
+      projectCode,
+      updatedAt:          new Date().toISOString(),
+      senderDevice:       (window.innerWidth >= 768 ? 'Laptop' : 'Celular') + '_' + Math.random().toString(36).substr(2, 4),
       totalProgressCount: changedPoles.length,
-      poles: changedPoles
+      poles:              changedPoles
     };
+
+    const payloadStr = JSON.stringify(payload);
+
+    // Verificar tamaño antes de enviar (límite seguro: 400 KB)
+    if (payloadStr.length > 400000) {
+      throw new Error(`Payload demasiado grande: ${(payloadStr.length / 1024).toFixed(0)} KB`);
+    }
 
     lastCloudSyncTimestamp = payload.updatedAt;
 
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     const response = await fetch(CLOUD_SYNC_API_URL, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    payloadStr,
+      signal:  controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const txt = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status} — ${txt.slice(0, 80)}`);
     }
 
     const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2567,11 +2578,17 @@ window.handlePushDataToCloud = async function(silent = false) {
     updateLiveSyncBannerUI('synced', timeStr);
 
     if (!silent) {
-      showToast(`☁️ ¡Datos subidos a la nube en tiempo real! (${timeStr})`, 'success');
+      showToast(`☁️ ¡Datos subidos a la nube! ${changedPoles.length} postes sincronizados (${timeStr})`, 'success');
     }
   } catch (err) {
-    console.error('[Cloud Auto-Push Error]:', err);
-    if (!silent) showToast('Error al conectar con la nube', 'error');
+    console.error('[Cloud Push Error]:', err.message || err);
+    updateLiveSyncBannerUI('ready');
+    if (!silent) {
+      const msg = err.name === 'AbortError'
+        ? 'Tiempo de espera agotado — revisa tu conexión a internet'
+        : `Error al subir: ${err.message || 'sin detalles'}`;
+      showToast(`❌ ${msg}`, 'error');
+    }
   } finally {
     if (!silent && btn) {
       btn.disabled = false;
