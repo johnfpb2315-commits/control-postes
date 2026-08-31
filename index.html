@@ -1383,26 +1383,35 @@
   </div>
 
   <!-- Barra de Acciones Inferior Fija para Móviles con Sincronización -->
-  <div class="sm:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 py-2 px-2 flex justify-around items-center z-30 shadow-2xl">
-    <button onclick="setTypeFilter('all')" class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-slate-300 hover:text-white">
+  <div class="sm:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 py-1.5 px-2 flex justify-around items-center z-30 shadow-2xl">
+    <button onclick="setTypeFilter('all')" class="flex flex-col items-center gap-0.5 text-[9px] font-bold text-slate-300 hover:text-white px-1">
       <i data-lucide="layout-grid" class="w-4 h-4"></i>
       <span>Padrón</span>
     </button>
-    <button onclick="handleOpenMapModal()" class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-sky-400">
+    <button onclick="handleOpenMapModal()" class="flex flex-col items-center gap-0.5 text-[9px] font-bold text-sky-400 px-1">
       <i data-lucide="map" class="w-4 h-4"></i>
       <span>Plano</span>
     </button>
-    <button onclick="handleOpenSyncModal()" class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-indigo-400">
-      <i data-lucide="cloud-sync" class="w-4 h-4"></i>
-      <span>Sincronizar</span>
+
+    <!-- BOTÓN SUBIR — siempre visible en celular -->
+    <button onclick="handlePushDataToCloud()" class="flex flex-col items-center gap-0.5 text-[9px] font-black text-white bg-emerald-600 px-3 py-1.5 rounded-xl shadow-lg shadow-emerald-600/40 active:scale-95 transition border border-emerald-500">
+      <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+      <span>☁️ Subir</span>
     </button>
-    <button onclick="handleOpenReportsModal()" class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-amber-400">
+
+    <!-- BOTÓN BAJAR — siempre visible en celular -->
+    <button onclick="handlePullDataFromCloud()" class="flex flex-col items-center gap-0.5 text-[9px] font-black text-white bg-indigo-600 px-3 py-1.5 rounded-xl shadow-lg shadow-indigo-600/40 active:scale-95 transition border border-indigo-500">
+      <i data-lucide="cloud-download" class="w-4 h-4"></i>
+      <span>⬇️ Bajar</span>
+    </button>
+
+    <button onclick="handleOpenSyncModal()" class="flex flex-col items-center gap-0.5 text-[9px] font-bold text-amber-400 px-1">
+      <i data-lucide="settings-2" class="w-4 h-4"></i>
+      <span>Config</span>
+    </button>
+    <button onclick="handleOpenReportsModal()" class="flex flex-col items-center gap-0.5 text-[9px] font-bold text-amber-400 px-1">
       <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
-      <span>Reportes</span>
-    </button>
-    <button onclick="handleInstallAppClick()" class="flex flex-col items-center gap-0.5 text-[10px] font-bold text-emerald-400">
-      <i data-lucide="smartphone" class="w-4 h-4"></i>
-      <span>Instalar</span>
+      <span>Reporte</span>
     </button>
   </div>
 
