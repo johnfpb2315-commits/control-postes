@@ -80,12 +80,25 @@
 
       <!-- Quick Action Buttons Header (Siempre Visibles en PC y Móvil) -->
       <div class="flex items-center gap-1 sm:gap-1.5">
-        
+
+        <!-- ☁️ SUBIR AVANCES — visible en laptop y celular -->
+        <button onclick="handlePushDataToCloud()" class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition shadow-md shadow-emerald-600/30 active:scale-95 border border-emerald-500">
+          <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-white"></i>
+          <span class="hidden sm:inline">☁️ Subir</span>
+          <span class="sm:hidden">Subir</span>
+        </button>
+
+        <!-- ⬇️ BAJAR / ACTUALIZAR — visible en laptop y celular -->
+        <button onclick="handlePullDataFromCloud()" class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-md shadow-indigo-600/30 active:scale-95 border border-indigo-500">
+          <i data-lucide="cloud-download" class="w-3.5 h-3.5 text-white"></i>
+          <span class="hidden sm:inline">⬇️ Bajar</span>
+          <span class="sm:hidden">Bajar</span>
+        </button>
+
         <!-- Botón Instalar en Celular (PWA) -->
-        <button id="btnInstallAppPrompt" onclick="handleInstallAppClick()" class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition shadow-md shadow-emerald-400/20 active:scale-95 animate-pulse" title="Instalar aplicación en celular">
+        <button id="btnInstallAppPrompt" onclick="handleInstallAppClick()" class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition shadow-md shadow-emerald-400/20 active:scale-95 animate-pulse hidden sm:flex" title="Instalar aplicación en celular">
           <i data-lucide="smartphone" class="w-3.5 h-3.5 text-emerald-950"></i>
-          <span class="hidden md:inline">Instalar en Celular</span>
-          <span class="md:hidden">Instalar</span>
+          <span class="hidden md:inline">Instalar</span>
         </button>
 
         <!-- Botón Ver Plano GPS -->
@@ -112,6 +125,7 @@
         </button>
       </div>
   </header>
+
 
   <!-- Barra de Estado de Sincronización en Tiempo Real (En Vivo) -->
   <div id="barLiveSyncStatus" class="bg-slate-950 text-indigo-200 border-b border-indigo-900/60 px-3 sm:px-6 py-1.5 text-xs flex justify-between items-center transition shadow-inner">
